@@ -9,6 +9,8 @@ type Card = {
   id: string;
   title: string;
   description?: string;
+  category?: string;
+  dueDate?: string;
 };
 
 type BoardState = {
@@ -27,6 +29,21 @@ type PersistedState = {
 type DragState = {
   boardType: "daily" | "general" | "project";
   fromColumnId: string;
+  cardId: string;
+};
+
+type CreateCardMode = "daily" | "project" | "task";
+
+type NewCardForm = {
+  title: string;
+  description: string;
+  category: string;
+  dueDate: string;
+};
+
+type EditTarget = {
+  boardType: "daily" | "general" | "project";
+  columnId: string;
   cardId: string;
 };
 
@@ -161,12 +178,101 @@ function columnIndex(columns: Column[], columnId: string): number {
   return columns.findIndex((column) => column.id === columnId);
 }
 
+function EditIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        d="M12 20h9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EnterIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        d="M14 3h7v7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 14 21 3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DeleteIcon(): JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        d="M3 6h18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 11v6M14 11v6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function GeneratedFeatureRoot(): JSX.Element {
   const [state, setState] = React.useState<PersistedState>(() => initialState());
   const [activeProjectId, setActiveProjectId] = React.useState<string | null>(null);
-  const [newDailyTaskTitle, setNewDailyTaskTitle] = React.useState("");
-  const [newProjectTitle, setNewProjectTitle] = React.useState("");
-  const [newTaskTitle, setNewTaskTitle] = React.useState("");
+  const [createCardMode, setCreateCardMode] = React.useState<CreateCardMode | null>(null);
+  const [newCardForm, setNewCardForm] = React.useState<NewCardForm>({
+    title: "",
+    description: "",
+    category: "",
+    dueDate: "",
+  });
+  const [editTarget, setEditTarget] = React.useState<EditTarget | null>(null);
   const [dragState, setDragState] = React.useState<DragState | null>(null);
   const [dropColumnId, setDropColumnId] = React.useState<string | null>(null);
 
@@ -213,8 +319,8 @@ export default function GeneratedFeatureRoot(): JSX.Element {
     : null;
   const activeProjectColumns = activeProjectBoard?.columns ?? [];
 
-  const addProject = (): void => {
-    const title = newProjectTitle.trim();
+  const addProject = (form: NewCardForm): void => {
+    const title = form.title.trim();
     if (!title) {
       return;
     }
@@ -223,7 +329,10 @@ export default function GeneratedFeatureRoot(): JSX.Element {
     const newCard: Card = {
       id: projectId,
       title,
-      description: "Click to enter this project's task board.",
+      description:
+        form.description.trim() || "Click to enter this project's task board.",
+      category: form.category.trim(),
+      dueDate: form.dueDate,
     };
 
     setState((prev) => ({
@@ -240,12 +349,10 @@ export default function GeneratedFeatureRoot(): JSX.Element {
         [projectId]: createProjectTaskBoard(title),
       },
     }));
-
-    setNewProjectTitle("");
   };
 
-  const addDailyTask = (): void => {
-    const title = newDailyTaskTitle.trim();
+  const addDailyTask = (form: NewCardForm): void => {
+    const title = form.title.trim();
     if (!title) {
       return;
     }
@@ -263,23 +370,23 @@ export default function GeneratedFeatureRoot(): JSX.Element {
               {
                 id: makeId("daily"),
                 title,
-                description: "",
+                description: form.description.trim(),
+                category: form.category.trim(),
+                dueDate: form.dueDate,
               },
             ],
           },
         },
       };
     });
-
-    setNewDailyTaskTitle("");
   };
 
-  const addTask = (): void => {
+  const addTask = (form: NewCardForm): void => {
     if (!activeProjectId) {
       return;
     }
 
-    const title = newTaskTitle.trim();
+    const title = form.title.trim();
     if (!title) {
       return;
     }
@@ -302,7 +409,9 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                 {
                   id: makeId("task"),
                   title,
-                  description: "",
+                  description: form.description.trim(),
+                  category: form.category.trim(),
+                  dueDate: form.dueDate,
                 },
               ],
             },
@@ -310,8 +419,96 @@ export default function GeneratedFeatureRoot(): JSX.Element {
         },
       };
     });
+  };
 
-    setNewTaskTitle("");
+  const updateDailyCard = (columnId: string, cardId: string, form: NewCardForm): void => {
+    setState((prev) => {
+      const cards = prev.dailyBoard.cardsByColumn[columnId] ?? [];
+
+      return {
+        ...prev,
+        dailyBoard: {
+          ...prev.dailyBoard,
+          cardsByColumn: {
+            ...prev.dailyBoard.cardsByColumn,
+            [columnId]: cards.map((card) =>
+              card.id === cardId
+                ? {
+                    ...card,
+                    title: form.title.trim(),
+                    description: form.description.trim(),
+                    category: form.category.trim(),
+                    dueDate: form.dueDate,
+                  }
+                : card,
+            ),
+          },
+        },
+      };
+    });
+  };
+
+  const updateProjectCard = (columnId: string, cardId: string, form: NewCardForm): void => {
+    setState((prev) => {
+      const cards = prev.generalBoard.cardsByColumn[columnId] ?? [];
+
+      return {
+        ...prev,
+        generalBoard: {
+          ...prev.generalBoard,
+          cardsByColumn: {
+            ...prev.generalBoard.cardsByColumn,
+            [columnId]: cards.map((card) =>
+              card.id === cardId
+                ? {
+                    ...card,
+                    title: form.title.trim(),
+                    description: form.description.trim(),
+                    category: form.category.trim(),
+                    dueDate: form.dueDate,
+                  }
+                : card,
+            ),
+          },
+        },
+      };
+    });
+  };
+
+  const updateTaskCard = (columnId: string, cardId: string, form: NewCardForm): void => {
+    if (!activeProjectId) {
+      return;
+    }
+
+    setState((prev) => {
+      const board =
+        prev.projectBoards[activeProjectId] ?? createProjectTaskBoard("Project");
+      const cards = board.cardsByColumn[columnId] ?? [];
+
+      return {
+        ...prev,
+        projectBoards: {
+          ...prev.projectBoards,
+          [activeProjectId]: {
+            ...board,
+            cardsByColumn: {
+              ...board.cardsByColumn,
+              [columnId]: cards.map((card) =>
+                card.id === cardId
+                  ? {
+                      ...card,
+                      title: form.title.trim(),
+                      description: form.description.trim(),
+                      category: form.category.trim(),
+                      dueDate: form.dueDate,
+                    }
+                  : card,
+              ),
+            },
+          },
+        },
+      };
+    });
   };
 
   const moveInGeneralBoard = (fromColumnId: string, toColumnId: string, cardId: string): void => {
@@ -462,6 +659,97 @@ export default function GeneratedFeatureRoot(): JSX.Element {
     setDropColumnId(null);
   };
 
+  const openCreateCardModal = (mode: CreateCardMode): void => {
+    if (mode === "task" && !activeProjectId) {
+      return;
+    }
+
+    setCreateCardMode(mode);
+    setEditTarget(null);
+    setNewCardForm({
+      title: "",
+      description: "",
+      category: "",
+      dueDate: "",
+    });
+  };
+
+  const openEditCardModal = (
+    target: EditTarget,
+    mode: CreateCardMode,
+    card: Card,
+  ): void => {
+    setCreateCardMode(mode);
+    setEditTarget(target);
+    setNewCardForm({
+      title: card.title,
+      description: card.description ?? "",
+      category: card.category ?? "",
+      dueDate: card.dueDate ?? "",
+    });
+  };
+
+  const closeCreateCardModal = (): void => {
+    setCreateCardMode(null);
+    setEditTarget(null);
+  };
+
+  const onCreateCardSubmit = (event: React.FormEvent): void => {
+    event.preventDefault();
+
+    if (!createCardMode) {
+      return;
+    }
+
+    if (!newCardForm.title.trim()) {
+      return;
+    }
+
+    if (editTarget) {
+      if (editTarget.boardType === "daily") {
+        updateDailyCard(editTarget.columnId, editTarget.cardId, newCardForm);
+      }
+
+      if (editTarget.boardType === "general") {
+        updateProjectCard(editTarget.columnId, editTarget.cardId, newCardForm);
+      }
+
+      if (editTarget.boardType === "project") {
+        updateTaskCard(editTarget.columnId, editTarget.cardId, newCardForm);
+      }
+
+      closeCreateCardModal();
+      return;
+    }
+
+    if (createCardMode === "daily") {
+      addDailyTask(newCardForm);
+    }
+
+    if (createCardMode === "project") {
+      addProject(newCardForm);
+    }
+
+    if (createCardMode === "task") {
+      addTask(newCardForm);
+    }
+
+    closeCreateCardModal();
+  };
+
+  const modalTitle =
+    editTarget && createCardMode === "daily"
+      ? "Edit Daily Task"
+      : editTarget && createCardMode === "project"
+        ? "Edit Project Card"
+        : editTarget && createCardMode === "task"
+          ? "Edit Task"
+          : createCardMode === "daily"
+            ? "Create Daily Task"
+            : createCardMode === "project"
+              ? "Create Project Card"
+              : "Create Task";
+
   return (
     <div
       style={{
@@ -494,27 +782,10 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                   alignItems: "center",
                 }}
               >
-                <label htmlFor="new-daily-task" style={{ fontWeight: 700 }}>
-                  Add daily task
-                </label>
-                <input
-                  id="new-daily-task"
-                  value={newDailyTaskTitle}
-                  onChange={(event) => setNewDailyTaskTitle(event.target.value)}
-                  placeholder="General task title"
-                  style={{
-                    minHeight: 44,
-                    borderRadius: 10,
-                    border: "1px solid #b8c2c6",
-                    padding: "0 12px",
-                    minWidth: 240,
-                    flex: "1 1 260px",
-                    background: "#ffffff",
-                  }}
-                />
+                <span style={{ fontWeight: 700 }}>Add daily task</span>
                 <button
                   type="button"
-                  onClick={addDailyTask}
+                  onClick={() => openCreateCardModal("daily")}
                   style={{
                     minHeight: 44,
                     border: "none",
@@ -585,32 +856,65 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                               {card.description}
                             </p>
                           ) : null}
-                          {column.id === "done" ? (
-                            <div
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              marginTop: 10,
+                              gap: 8,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              aria-label="Edit card"
+                              title="Edit"
+                              onClick={() =>
+                                openEditCardModal(
+                                  {
+                                    boardType: "daily",
+                                    columnId: column.id,
+                                    cardId: card.id,
+                                  },
+                                  "daily",
+                                  card,
+                                )
+                              }
                               style={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                marginTop: 10,
+                                minWidth: 44,
+                                minHeight: 44,
+                                borderRadius: 8,
+                                border: "1px solid #3b6f7d",
+                                background: "#edf8fb",
+                                color: "#134452",
+                                display: "grid",
+                                placeItems: "center",
+                                cursor: "pointer",
                               }}
                             >
+                              <EditIcon />
+                            </button>
+                            {column.id === "done" ? (
                               <button
                                 type="button"
+                                aria-label="Delete card"
+                                title="Delete"
                                 onClick={() => deleteDailyDoneCard(card.id)}
                                 style={{
+                                  minWidth: 44,
                                   minHeight: 44,
                                   borderRadius: 8,
                                   border: "1px solid #a63a3a",
                                   background: "#fdecec",
                                   color: "#7a1f1f",
-                                  padding: "0 12px",
+                                  display: "grid",
+                                  placeItems: "center",
                                   cursor: "pointer",
-                                  fontWeight: 700,
                                 }}
                               >
-                                Delete
+                                <DeleteIcon />
                               </button>
-                            </div>
-                          ) : null}
+                            ) : null}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -636,27 +940,10 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                 alignItems: "center",
               }}
             >
-              <label htmlFor="new-project" style={{ fontWeight: 700 }}>
-                Add project
-              </label>
-              <input
-                id="new-project"
-                value={newProjectTitle}
-                onChange={(event) => setNewProjectTitle(event.target.value)}
-                placeholder="Project name"
-                style={{
-                  minHeight: 44,
-                  borderRadius: 10,
-                  border: "1px solid #b8c2c6",
-                  padding: "0 12px",
-                  minWidth: 240,
-                  flex: "1 1 260px",
-                  background: "#ffffff",
-                }}
-              />
+              <span style={{ fontWeight: 700 }}>Add project</span>
               <button
                 type="button"
-                onClick={addProject}
+                onClick={() => openCreateCardModal("project")}
                 style={{
                   minHeight: 44,
                   border: "none",
@@ -740,6 +1027,20 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                             >
                               {card.description}
                             </p>
+                            {(card.category || card.dueDate) ? (
+                              <p
+                                style={{
+                                  margin: "0 0 10px",
+                                  color: "#45626d",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {card.category ? `Category: ${card.category}` : ""}
+                                {card.category && card.dueDate ? " | " : ""}
+                                {card.dueDate ? `Due: ${card.dueDate}` : ""}
+                              </p>
+                            ) : null}
                             <div
                               style={{
                                 display: "flex",
@@ -752,37 +1053,72 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                               {hasChildBoard ? (
                                 <button
                                   type="button"
+                                  aria-label="Enter task board"
+                                  title="Enter task board"
                                   onClick={() => setActiveProjectId(card.id)}
                                   style={{
+                                    minWidth: 44,
                                     minHeight: 44,
                                     borderRadius: 8,
                                     border: "1px solid #0f6f83",
                                     background: "#e7f6f9",
                                     color: "#0a4552",
-                                    padding: "0 12px",
+                                    display: "grid",
+                                    placeItems: "center",
                                     cursor: "pointer",
-                                    fontWeight: 700,
                                   }}
                                 >
-                                  Enter Task Board
+                                  <EnterIcon />
                                 </button>
                               ) : null}
+                              <button
+                                type="button"
+                                aria-label="Edit project card"
+                                title="Edit"
+                                onClick={() =>
+                                  openEditCardModal(
+                                    {
+                                      boardType: "general",
+                                      columnId: column.id,
+                                      cardId: card.id,
+                                    },
+                                    "project",
+                                    card,
+                                  )
+                                }
+                                style={{
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                  borderRadius: 8,
+                                  border: "1px solid #3b6f7d",
+                                  background: "#edf8fb",
+                                  color: "#134452",
+                                  display: "grid",
+                                  placeItems: "center",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <EditIcon />
+                              </button>
                               {column.id === "done" ? (
                                 <button
                                   type="button"
+                                  aria-label="Delete project card"
+                                  title="Delete"
                                   onClick={() => deleteCompletedProjectCard(card.id)}
                                   style={{
+                                    minWidth: 44,
                                     minHeight: 44,
                                     borderRadius: 8,
                                     border: "1px solid #a63a3a",
                                     background: "#fdecec",
                                     color: "#7a1f1f",
-                                    padding: "0 12px",
+                                    display: "grid",
+                                    placeItems: "center",
                                     cursor: "pointer",
-                                    fontWeight: 700,
                                   }}
                                 >
-                                  Delete
+                                  <DeleteIcon />
                                 </button>
                               ) : null}
                             </div>
@@ -843,27 +1179,10 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                 alignItems: "center",
               }}
             >
-              <label htmlFor="new-task" style={{ fontWeight: 700 }}>
-                Add task
-              </label>
-              <input
-                id="new-task"
-                value={newTaskTitle}
-                onChange={(event) => setNewTaskTitle(event.target.value)}
-                placeholder="Task title"
-                style={{
-                  minHeight: 44,
-                  borderRadius: 10,
-                  border: "1px solid #b8c2c6",
-                  padding: "0 12px",
-                  minWidth: 240,
-                  flex: "1 1 260px",
-                  background: "#ffffff",
-                }}
-              />
+              <span style={{ fontWeight: 700 }}>Add task</span>
               <button
                 type="button"
-                onClick={addTask}
+                onClick={() => openCreateCardModal("task")}
                 style={{
                   minHeight: 44,
                   border: "none",
@@ -938,32 +1257,79 @@ export default function GeneratedFeatureRoot(): JSX.Element {
                                 {card.description}
                               </p>
                             ) : null}
-                            {column.id === "done" ? (
-                              <div
+                            {(card.category || card.dueDate) ? (
+                              <p
                                 style={{
-                                  display: "flex",
-                                  justifyContent: "flex-end",
-                                  marginTop: 10,
+                                  margin: "0 0 10px",
+                                  color: "#45626d",
+                                  fontSize: 12,
+                                  fontWeight: 600,
                                 }}
                               >
+                                {card.category ? `Category: ${card.category}` : ""}
+                                {card.category && card.dueDate ? " | " : ""}
+                                {card.dueDate ? `Due: ${card.dueDate}` : ""}
+                              </p>
+                            ) : null}
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                marginTop: 10,
+                                gap: 8,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                aria-label="Edit task"
+                                title="Edit"
+                                onClick={() =>
+                                  openEditCardModal(
+                                    {
+                                      boardType: "project",
+                                      columnId: column.id,
+                                      cardId: card.id,
+                                    },
+                                    "task",
+                                    card,
+                                  )
+                                }
+                                style={{
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                  borderRadius: 8,
+                                  border: "1px solid #3b6f7d",
+                                  background: "#edf8fb",
+                                  color: "#134452",
+                                  display: "grid",
+                                  placeItems: "center",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <EditIcon />
+                              </button>
+                              {column.id === "done" ? (
                                 <button
                                   type="button"
+                                  aria-label="Delete task"
+                                  title="Delete"
                                   onClick={() => deleteDoneTaskCard(card.id)}
                                   style={{
+                                    minWidth: 44,
                                     minHeight: 44,
                                     borderRadius: 8,
                                     border: "1px solid #a63a3a",
                                     background: "#fdecec",
                                     color: "#7a1f1f",
-                                    padding: "0 12px",
+                                    display: "grid",
+                                    placeItems: "center",
                                     cursor: "pointer",
-                                    fontWeight: 700,
                                   }}
                                 >
-                                  Delete
+                                  <DeleteIcon />
                                 </button>
-                              </div>
-                            ) : null}
+                              ) : null}
+                            </div>
                           </div>
                         );
                       },
@@ -974,6 +1340,177 @@ export default function GeneratedFeatureRoot(): JSX.Element {
             </div>
           </section>
         )}
+
+        {createCardMode ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-card-modal-title"
+            onClick={closeCreateCardModal}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(18, 25, 29, 0.4)",
+              display: "grid",
+              placeItems: "center",
+              padding: 16,
+            }}
+          >
+            <form
+              onSubmit={onCreateCardSubmit}
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                width: "min(560px, 100%)",
+                background: "#fffdf9",
+                border: "1px solid #d6d0c6",
+                borderRadius: 14,
+                padding: 16,
+                display: "grid",
+                gap: 12,
+              }}
+            >
+              <h3 id="create-card-modal-title" style={{ margin: 0 }}>
+                {modalTitle}
+              </h3>
+
+              <label style={{ display: "grid", gap: 6, fontWeight: 700 }}>
+                Title
+                <input
+                  required
+                  value={newCardForm.title}
+                  onChange={(event) =>
+                    setNewCardForm((prev) => ({
+                      ...prev,
+                      title: event.target.value,
+                    }))
+                  }
+                  placeholder="Card title"
+                  style={{
+                    minHeight: 44,
+                    borderRadius: 10,
+                    border: "1px solid #b8c2c6",
+                    padding: "0 12px",
+                    background: "#ffffff",
+                  }}
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6, fontWeight: 700 }}>
+                Description
+                <textarea
+                  value={newCardForm.description}
+                  onChange={(event) =>
+                    setNewCardForm((prev) => ({
+                      ...prev,
+                      description: event.target.value,
+                    }))
+                  }
+                  placeholder="What should be done?"
+                  rows={4}
+                  style={{
+                    borderRadius: 10,
+                    border: "1px solid #b8c2c6",
+                    padding: 12,
+                    background: "#ffffff",
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </label>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                }}
+              >
+                <label style={{ display: "grid", gap: 6, fontWeight: 700 }}>
+                  Category
+                  <input
+                    value={newCardForm.category}
+                    onChange={(event) =>
+                      setNewCardForm((prev) => ({
+                        ...prev,
+                        category: event.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Feature, Bug, Ops"
+                    style={{
+                      minHeight: 44,
+                      borderRadius: 10,
+                      border: "1px solid #b8c2c6",
+                      padding: "0 12px",
+                      background: "#ffffff",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6, fontWeight: 700 }}>
+                  Due date
+                  <input
+                    type="date"
+                    value={newCardForm.dueDate}
+                    onChange={(event) =>
+                      setNewCardForm((prev) => ({
+                        ...prev,
+                        dueDate: event.target.value,
+                      }))
+                    }
+                    style={{
+                      minHeight: 44,
+                      borderRadius: 10,
+                      border: "1px solid #b8c2c6",
+                      padding: "0 12px",
+                      background: "#ffffff",
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeCreateCardModal}
+                  style={{
+                    minHeight: 44,
+                    border: "1px solid #909ea4",
+                    borderRadius: 10,
+                    padding: "0 16px",
+                    background: "#ffffff",
+                    color: "#22323b",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    minHeight: 44,
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "0 16px",
+                    background: "#0b5a6b",
+                    color: "#fff",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {editTarget ? "Update Card" : "Save Card"}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
       </main>
     </div>
   );
